@@ -12,15 +12,15 @@ It has the capability of steganographically encoding messages in files. Special 
 
 * Format-specific encoders can be easily written without having to worry about information theoretic encoding or cryptography
 
-* Support for multiple messages to multiple keys in a single file 
+* Support for multiple messages to multiple keys in a single file
 
 ### Primary Use
 
-The primary use case for DissidentX is encoding messages in files on the web. 
+The primary use case for DissidentX is encoding messages in files on the web.
 
-There should be a utility which scans all objects the user's web browser downloads (html files, images, css files, etc.) for messages using all of the keys the user has entered. Someone sending messages to that person provides a web service where users who have widely viewed web sites can upload their files and get back slightly modified version with messages steganographically added. 
+There should be a utility which scans all objects the user's web browser downloads (html files, images, css files, etc.) for messages using all of the keys the user has entered. Someone sending messages to that person provides a web service where users who have widely viewed web sites can upload their files and get back slightly modified version with messages steganographically added.
 
-The web users should not be able to read what the messages are, and it should be possible for  the service doing the encoding to not have to keep messages in plaintext.  
+The web users should not be able to read what the messages are, and it should be possible for  the service doing the encoding to not have to keep messages in plaintext.
 
 Because encoding rates are so low, a number of the parameters to the  encoding and decoding libraries have been lowered to not be appropriate  for all use cases. They should be evaluated in the context of this one. The same technology should alse be used for easter egg hunts, because that's fun and provides cover traffic.
 
@@ -55,7 +55,7 @@ Note that `line_ending_encoder` only gets one bit per line, with overhead of sev
 
 The `prepare_message()` function takes a key and plaintext, both byte strings, and returns another key and ciphertext to be used later. This is done as a separate step to enable the use case where messages to be encoded are stored on a server already encrypted.
 
-The `pack_and_encode_messages()` function takes an array of results from `prepare_message()` and a processed file for the messages to be stored in. The processed file is an array consisting alternately of fixed binary strings and arrays of length two giving alternate possible values for that position. 
+The `pack_and_encode_messages()` function takes an array of results from `prepare_message()` and a processed file for the messages to be stored in. The processed file is an array consisting alternately of fixed binary strings and arrays of length two giving alternate possible values for that position.
 
 Alternates can be anything semantically valid for the file format being used. For example in human readable text files eliminating unnecessary commas in text, or alternate spellings for words, or alternative word orders can all be used. Multiple methods of generating alternates can be used in the same file.
 
@@ -84,17 +84,17 @@ A. Because I don't know how. Feel free to implement improvements.
 
 __Q. Can someone detect that a file has messages encoded in it?__
 
-A. That depends on the encoding used and the properties of the file the data is 
-being encoded in. There's a whole field of academic literature 
-on steganography, none of which is invalidated by this code. What this code 
-does is vastly simplify the implementation of new steganographic techniques, 
-and allow a universal decoder and encoding of multiple messages to different 
+A. That depends on the encoding used and the properties of the file the data is
+being encoded in. There's a whole field of academic literature
+on steganography, none of which is invalidated by this code. What this code
+does is vastly simplify the implementation of new steganographic techniques,
+and allow a universal decoder and encoding of multiple messages to different
 keys in the same file.
 
 __Q. How much data can be encoded in a file?__
 
-A. That's entirely dependant on the file type and specific encoding, but if 
-you insist on a made up number, let's say a ratio of around 500:1, and the 
+A. That's entirely dependant on the file type and specific encoding, but if
+you insist on a made up number, let's say a ratio of around 500:1, and the
 encoded message has overhead of about 7 bytes.
 
 __Q. Why can't it be given more than two alternates for one position to encode more information?__

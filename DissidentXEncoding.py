@@ -244,13 +244,3 @@ def test_crypt():
 	assert decode_and_decrypt_message(key, pack_and_encode_messages([(key2, message2)], plaintext)) == message
 
 test_crypt()
-
-
-
-
-
-
-
-
-
-
