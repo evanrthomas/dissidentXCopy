@@ -6,34 +6,63 @@ import sha3
 from Crypto.Cipher import AES
 
 def h(message):
-	return hashlib.sha3_256(message).digest()
+  """
+    Returns the hash of message
+    message: bytes (ie b'this string')
+  """
+  return hashlib.sha3_256(message).digest()
 
 def x(m1, m2):
-	assert type(m1) is bytes
-	assert type(m2) is bytes
-	return (int.from_bytes(m1, 'big') ^ int.from_bytes(m2, 'big')).to_bytes(len(m1), 'big')
+  """
+    Returns m1 xor m2
+    m1: bytes
+    m2: bytes
+  """
+  assert type(m1) is bytes
+  assert type(m2) is bytes
+  return (int.from_bytes(m1, 'big') ^ int.from_bytes(m2, 'big')).to_bytes(len(m1), 'big')
 
 assert x(x(b'abc', b'def'), b'def') == b'abc'
 
 def encrypt_ofb(key, iv, plaintext):
-	assert len(key) == 16, key
-	assert len(iv) == 16, iv
-	return AES.new(key, AES.MODE_OFB, iv).encrypt(plaintext + b'a' * (-len(plaintext) % 16))[:len(plaintext)]
+  """
+  encrypts a message in AES (ofb mode)
+  key: bytes
+  iv: bytes
+  plaintext: bytes
+  """
+  assert len(key) == 16, key
+  assert len(iv) == 16, iv
+  return AES.new(key, AES.MODE_OFB, iv).encrypt(plaintext +
+      b'a' * (-len(plaintext) % 16) #padding because block size is 16
+      )[:len(plaintext)] # strip the padding
 
 assert encrypt_ofb(b'abcd' * 4, b'iv' * 8, encrypt_ofb(b'abcd' * 4, b'iv' * 8, b'plaintext')) == b'plaintext'
 
 def encrypt_message(key, plaintext):
-	mac = h(key + plaintext)[:4]
-	return mac + encrypt_ofb(key, mac + bytes([0] * 12), plaintext)
+  """
+  encrypts a message in AES (ofb mode)
+  key: bytes
+  plaintext: bytes
+  """
+  mac = h(key + plaintext)[:4]
+  return mac + encrypt_ofb(key, mac + bytes([0] * 12), plaintext)
 
 def prepare_message(key, plaintext):
-	key = h(key)[:16]
-	return h(key)[:16], encrypt_message(key, plaintext)
+  """
+  hash the plaintext key to 16 bytes and encrypt the message with the hashed key
+  """
+  key = h(key)[:16]
+  return h(key)[:16], encrypt_message(key, plaintext)
 
 def decrypt_message(key, ciphertext):
-	mac = ciphertext[:4]
-	r = encrypt_ofb(key, mac + bytes([0] * 12), ciphertext[4:])
-	return (r if mac == h(key + r)[:4] else None)
+  """
+  decrypt the message and return it iff the mac of the message is correct,
+  because we're in ofb mode decryption is the same as encryption, ie x = encrypt(encrypt(x))
+  """
+  mac = ciphertext[:4]
+  r = encrypt_ofb(key, mac + bytes([0] * 12), ciphertext[4:])
+  return (r if mac == h(key + r)[:4] else None)
 
 def test_encrypt():
 	key = b'abcd' * 4
@@ -87,33 +116,42 @@ def test_pack():
 test_pack()
 
 def remove_too_short(plaintext):
-	p2 = [b'']
-	for i in range(0, len(plaintext)-1, 2):
-		p2[-1] += plaintext[i]
-		if len(p2) > 1 and len(p2[-1]) < 15:
-			p2[-1] += plaintext[i+1][0]
-		else:
-			a, b = plaintext[i+1]
-			j = 0
-			while j < len(a) and j < len(b) and a[j] == b[j]:
-				j += 1
-			if j:
-				p2[-1] += a[:j]
-				a = a[j:]
-				b = b[j:]
-			j = 0
-			while j < len(a) and j < len(b) and a[-j-1] == b[-j-1]:
-				j += 1
-			if j:
-				excess = a[-j:]
-				a = a[:-j]
-				b = b[:-j]
-			else:
-				excess = b''
-			p2.append([a, b])
-			p2.append(excess)
-	p2[-1] += plaintext[-1]
-	return p2
+  """
+  Takes an array of type [a, [b, c], d],
+  returns [a', [b', c'], d'] where
+  a' = a + pre(b,c),
+  d' = d + suf(b,c),
+  b' = b - pre(b,c) - suf(b,c)
+  c' = c - pre(b,c) - suf(b,c)
+  and pre,suf are funcitons that return the longest common prefix/suffix or their arguments
+  """
+  p2 = [b'']
+  for i in range(0, len(plaintext)-1, 2):
+    p2[-1] += plaintext[i]
+    if len(p2) > 1 and len(p2[-1]) < 15:
+      p2[-1] += plaintext[i+1][0]
+    else:
+      a, b = plaintext[i+1]
+      j = 0
+      while j < len(a) and j < len(b) and a[j] == b[j]:
+        j += 1
+      if j:
+        p2[-1] += a[:j]
+        a = a[j:]
+        b = b[j:]
+      j = 0
+      while j < len(a) and j < len(b) and a[-j-1] == b[-j-1]:
+        j += 1
+      if j:
+        excess = a[-j:]
+        a = a[:-j]
+        b = b[:-j]
+      else:
+        excess = b''
+      p2.append([a, b])
+      p2.append(excess)
+  p2[-1] += plaintext[-1]
+  return p2
 
 assert remove_too_short([b'', [b'abc', b'aqc'], b'y']) == [b'a', [b'b', b'q'], b'cy']
 assert remove_too_short([b'x', [b'abc', b'abcd'], b'y']) == [b'xabc', [b'', b'd'], b'y']
@@ -206,6 +244,7 @@ def solve(vectors, goal):
 			r = xor(r, active[i][len(goal):])
 	return r
 
+# -------------- testing ------------------
 from random import randrange
 
 def test_solve():
@@ -244,3 +283,4 @@ def test_crypt():
 	assert decode_and_decrypt_message(key, pack_and_encode_messages([(key2, message2)], plaintext)) == message
 
 test_crypt()
+
