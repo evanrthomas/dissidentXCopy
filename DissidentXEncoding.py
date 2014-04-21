@@ -186,7 +186,11 @@ def encode_messages(messages, plaintext):
 	return b''.join(r)
 
 def pack_and_encode_messages(messages, plaintext):
-	return encode_messages([(key, pack_message(message)) for key, message in messages], plaintext)
+  """
+  messages: array of messages each encrypted with it's own secret key
+  plaintext: plaintext that has been run through a preparefunc, ie it looks like [b'abc', [a1, a1'], b'def', [a2, a2'] ...]
+  """
+  return encode_messages([(key, pack_message(message)) for key, message in messages], plaintext)
 
 def pdms(messages, text):
 	return b''.join([partial_decode_message(key, text, len(message)) for (key, message) in messages])
