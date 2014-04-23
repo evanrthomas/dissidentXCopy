@@ -22,8 +22,6 @@ def x(m1, m2):
   assert type(m2) is bytes
   return (int.from_bytes(m1, 'big') ^ int.from_bytes(m2, 'big')).to_bytes(len(m1), 'big')
 
-assert x(x(b'abc', b'def'), b'def') == b'abc'
-
 def encrypt_ofb(key, iv, plaintext):
   """
   encrypts a message in AES (ofb mode)
@@ -36,8 +34,6 @@ def encrypt_ofb(key, iv, plaintext):
   return AES.new(key, AES.MODE_OFB, iv).encrypt(plaintext +
       b'a' * (-len(plaintext) % 16) #padding because block size is 16
       )[:len(plaintext)] # strip the padding
-
-assert encrypt_ofb(b'abcd' * 4, b'iv' * 8, encrypt_ofb(b'abcd' * 4, b'iv' * 8, b'plaintext')) == b'plaintext'
 
 def encrypt_message(key, plaintext):
   """
@@ -63,15 +59,6 @@ def decrypt_message(key, ciphertext):
   mac = ciphertext[:4]
   r = encrypt_ofb(key, mac + bytes([0] * 12), ciphertext[4:])
   return (r if mac == h(key + r)[:4] else None)
-
-def test_encrypt():
-	key = b'abcd' * 4
-	fullstr = bytes(list(range(256)))
-	for i in range(256):
-		mystr = fullstr[:i]
-		assert decrypt_message(key, encrypt_message(key, mystr)) == mystr
-
-test_encrypt()
 
 def pack_message(message):
 	assert len(message) >= 4, message
@@ -104,16 +91,6 @@ def unpack_message(message):
 		mbegin = 6
 	assert len(message) == mlen + mbegin - 2
 	return message[:4] + message[mbegin + 2:]
-
-def test_pack():
-	fullstr = bytes(list(range(256)))
-	for i in range(4, 256):
-		mystr = fullstr[:i]
-		packed = pack_message(mystr)
-		assert begin_unpack_message(packed) == len(packed)
-		assert unpack_message(packed) == mystr
-
-test_pack()
 
 def remove_too_short(plaintext):
   """
@@ -153,11 +130,6 @@ def remove_too_short(plaintext):
   p2[-1] += plaintext[-1]
   return p2
 
-assert remove_too_short([b'', [b'abc', b'aqc'], b'y']) == [b'a', [b'b', b'q'], b'cy']
-assert remove_too_short([b'x', [b'abc', b'abcd'], b'y']) == [b'xabc', [b'', b'd'], b'y']
-assert remove_too_short([b'x', [b'abc', b'dabc'], b'y']) == [b'x', [b'', b'd'], b'abcy']
-assert remove_too_short([b'x', [b'ac', b'aqc'], b'y']) == [b'xa', [b'', b'q'], b'cy']
-
 def to_bitfield(m):
 	r = []
 	for v in m:
@@ -187,7 +159,7 @@ def encode_messages(messages, plaintext):
 
 def pack_and_encode_messages(messages, plaintext):
   """
-  messages: array of messages each encrypted with it's own secret key
+  messages: array of (h(key),message) pairs where h(key) is a
   plaintext: plaintext that has been run through a preparefunc, ie it looks like [b'abc', [a1, a1'], b'def', [a2, a2'] ...]
   """
   return encode_messages([(key, pack_message(message)) for key, message in messages], plaintext)
@@ -226,8 +198,6 @@ def xor(a, b):
 	assert type(b) is list
 	return [x^y for x, y in zip(a, b)]
 
-assert xor([0, 0, 1, 1], [0, 1, 0, 1]) == [0, 1, 1, 0]
-
 def solve(vectors, goal):
 	active = [x + [0] * len(vectors) for x in vectors]
 	for i in range(len(active)):
@@ -251,6 +221,21 @@ def solve(vectors, goal):
 # -------------- testing ------------------
 from random import randrange
 
+def test_encrypt():
+	key = b'abcd' * 4
+	fullstr = bytes(list(range(256)))
+	for i in range(256):
+		mystr = fullstr[:i]
+		assert decrypt_message(key, encrypt_message(key, mystr)) == mystr
+
+def test_pack():
+	fullstr = bytes(list(range(256)))
+	for i in range(4, 256):
+		mystr = fullstr[:i]
+		packed = pack_message(mystr)
+		assert begin_unpack_message(packed) == len(packed)
+		assert unpack_message(packed) == mystr
+
 def test_solve():
 	vectors = [[randrange(2) for j in range(5)] for i in range(10)]
 	goal = [randrange(2) for i in range(5)]
@@ -261,8 +246,6 @@ def test_solve():
 			t = xor(t, vectors[i])
 	assert t == goal
 
-test_solve()
-
 def test_encode():
 	key = bytes([7] * 16)
 	plaintext = [b'abc', [b'', b'pqr']]
@@ -272,8 +255,6 @@ def test_encode():
 	plaintext.append(b'stuv')
 	message = b'hey'
 	assert partial_decode_message(key, encode_messages([(key, message)], plaintext), len(message)) == message
-
-test_encode()
 
 def test_crypt():
 	key = b'key'
@@ -286,5 +267,29 @@ def test_crypt():
 	plaintext.append(b'stuv')
 	assert decode_and_decrypt_message(key, pack_and_encode_messages([(key2, message2)], plaintext)) == message
 
-test_crypt()
+def test_remove_too_short():
+  assert remove_too_short([b'', [b'abc', b'aqc'], b'y']) == [b'a', [b'b', b'q'], b'cy']
+  assert remove_too_short([b'x', [b'abc', b'abcd'], b'y']) == [b'xabc', [b'', b'd'], b'y']
+  assert remove_too_short([b'x', [b'abc', b'dabc'], b'y']) == [b'x', [b'', b'd'], b'abcy']
+  assert remove_too_short([b'x', [b'ac', b'aqc'], b'y']) == [b'xa', [b'', b'q'], b'cy']
+
+def test_encrypt_ofb():
+  assert encrypt_ofb(b'abcd' * 4, b'iv' * 8, encrypt_ofb(b'abcd' * 4, b'iv' * 8, b'plaintext')) == b'plaintext'
+
+def test_x():
+  assert x(x(b'abc', b'def'), b'def') == b'abc'
+
+def test_xor():
+  assert xor([0, 0, 1, 1], [0, 1, 0, 1]) == [0, 1, 1, 0]
+
+if __name__ == "__main__":
+  test_encrypt()
+  test_pack()
+  test_solve()
+  test_encode()
+  test_crypt()
+  test_remove_too_short()
+  test_encrypt_ofb()
+  test_x()
+  test_xor()
 
