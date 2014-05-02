@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(0, '../')
-import line_endings_encode, DissidentXEncoding, EncoderBoilerplate
-import random, bisect, cProfile
+from line_endings_encode import endings_encode
+import EncoderBoilerplate, random, bisect, cProfile, json, string
 
 letterPmf = list(map(lambda x: x/100.0,
   [8.167,1.492,2.782,4.253,12.702,2.228,2.015,6.094,6.966,0.153,0.772,
@@ -21,13 +21,7 @@ def sample(pmf):
 def genWord():
   return ''.join([chr(sample(letterPmf) + 97) for x in range(int(sample(wordLenPmf)))])
 
-def genText():
-  avgLineLength = 50
-  varLineLength = 5
-  avgTextLines = 20
-  varTextLines = 10
-
-  textSize = int(random.gauss(avgTextLines, varTextLines))
+def genText(textSize, avgLineLength = 50,  varLineLength = 5):
   p = ''
   for x in range(textSize):
     thisLineLength = random.gauss(avgLineLength, varLineLength)
@@ -36,7 +30,47 @@ def genText():
       thisLine += genWord() +  ' '
     thisLine = thisLine[:-1]
     p += thisLine + '\n'
-  return bytes(p.encode('utf-8'))
+  return p
+
+def encodeInRandomText(key, message, textSize=50):
+  return EncoderBoilerplate.encode(endings_encode, bytes(genText(textSize).encode('utf-8')), [(key, message)])
+
+def profile():
+  prof =  cProfile.Profile()
+  val = prof.runcall(encode, key, message)
+  prof.print_stats()
+
+def findEncodingLimit(plaintextSize):
+  """
+    for a given plainTextSize, generate a distribution f(m) -> p
+      where m is a message size and p is "the probability that encoding a message of
+      size m into a plaintext of size plainTextSize will fail"
+  """
+  randString = lambda size: ''.join([random.choice(string.ascii_lowercase) for _ in range(size)])
+
+  keySize = 10
+  messageSize = 1
+  f = dict()
+  for messageSize in range(plaintextSize): #control messageSize
+    f[messageSize] = 0
+    print('encoding')
+    for x in range(50):
+      if encodeInRandomText(randString(keySize), randString(messageSize), plaintextSize) != None:
+        f[messageSize] += 1
+    f[messageSize] /= 50.0
+    print('messageSize', messageSize)
+  return f
 
 
+
+
+
+
+if __name__ == "__main__":
+  #profile()
+  data = {} #hash of {plainTextSize -> encodingLimitDist}
+  for plaintextSize in range(100, 200):
+    data[plaintextSize] = findEncodingLimit(plaintextSize)
+    print(plaintextSize)
+  json.dump(data, open('encodingLimit', 'w'))
 

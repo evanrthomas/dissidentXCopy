@@ -4,6 +4,7 @@
 import hashlib
 import sha3
 from Crypto.Cipher import AES
+import pdb
 
 def h(message):
   """
@@ -20,6 +21,7 @@ def x(m1, m2):
   """
   assert type(m1) is bytes
   assert type(m2) is bytes
+  assert len(m1) == len(m2)
   return (int.from_bytes(m1, 'big') ^ int.from_bytes(m2, 'big')).to_bytes(len(m1), 'big')
 
 def encrypt_ofb(key, iv, plaintext):
@@ -46,6 +48,9 @@ def encrypt_message(key, plaintext):
 
 def prepare_message(key, plaintext):
   """
+  key: string
+  plaintext: string
+  returns: bytes:h(key), bytes:encrypted(plaintext)
   hash the plaintext key to 16 bytes and encrypt the message with the hashed key
   """
   key = h(key)[:16]
@@ -61,25 +66,33 @@ def decrypt_message(key, ciphertext):
   return (r if mac == h(key + r)[:4] else None)
 
 def pack_message(message):
-	assert len(message) >= 4, message
-	r = message[:4]
-	v = len(message) - 4
-	lb = bytes([v] if v < 128 else [128 | v >> 8, v & 0xFF])
-	r += x(lb, h(r)[:len(lb)])
-	r += h(r)[:2]
-	return r + message[4:]
+  """
+  message bytes:encrypted(message)
+  return packed(message)
+  """
+  assert len(message) >= 4, message
+  pdb.set_trace()
+  r = message[:4] #the mac of the encrypted message
+  v = len(message) - 4 #length of the actual message
+  lb = bytes([v] if v < 128 else [128 | v >> 8, v & 0xFF])
+  r += x(lb, h(r)[:len(lb)]) #r = mac | (h(mac) xor length)
+  r += h(r)[:2] #r = mac | (h(mac) xor length) | h(first two chunks)[:2]
+  return r + message[4:]
 
 def begin_unpack_message(message):
-	prefix = x(h(message[:4])[:2], message[4:6])
-	if prefix[0] < 128:
-		mlen = prefix[0] + 4
-		mbegin = 5
-	else:
-		mlen = (((prefix[0] - 128) << 8) | prefix[1]) + 4
-		mbegin = 6
-	if message[mbegin:mbegin + 2] != h(message[:mbegin])[:2]:
-		return None
-	return mlen + mbegin - 2
+  """
+  returns the length of the message, ... or something like that
+  """
+  prefix = x(h(message[:4])[:2], message[4:6])
+  if prefix[0] < 128:
+  	mlen = prefix[0] + 4
+  	mbegin = 5
+  else:
+  	mlen = (((prefix[0] - 128) << 8) | prefix[1]) + 4
+  	mbegin = 6
+  if message[mbegin:mbegin + 2] != h(message[:mbegin])[:2]:
+  	return None
+  return mlen + mbegin - 2
 
 def unpack_message(message):
 	prefix = x(h(message[:4])[:2], message[4:6])
@@ -131,67 +144,82 @@ def remove_too_short(plaintext):
   return p2
 
 def to_bitfield(m):
-	r = []
-	for v in m:
-		for i in range(8):
-			r.append((v >> i) & 1)
-	return r
+  r = []
+  for v in m:
+    for i in range(8):
+      r.append((v >> i) & 1)
+  return r
 
 def encode_messages(messages, plaintext):
-	plaintext = remove_too_short(plaintext)
-	base = [plaintext[0]]
-	for i in range(1, len(plaintext), 2):
-		base.append(plaintext[i][0])
-		base.append(plaintext[i+1])
-	goal = to_bitfield(x(b''.join([message for key, message in messages]), pdms(messages, b''.join(base))))
-	vectors = []
-	for i in range(1, len(plaintext), 2):
-		vectors.append(to_bitfield(x(pdms(messages, plaintext[i-1][-15:] + plaintext[i][0] + plaintext[i+1][:15]),
-			pdms(messages, plaintext[i-1][-15:] + plaintext[i][1] + plaintext[i+1][:15]))))
-	toflips = solve(vectors, goal)
-	if toflips is None:
-		return None
-	r = [plaintext[0]]
-	for p, i in enumerate(range(1, len(plaintext), 2)):
-		r.append(plaintext[i][toflips[p]])
-		r.append(plaintext[i+1])
-	return b''.join(r)
+  """
+  plaintext array: plaintext already prepared by preparefunc
+  messages array: [(key1, message1), (key2, message2) ...]
+          key bytes:h(key)
+          message packed(message)
+  """
+
+  plaintext = remove_too_short(plaintext)
+  base = [plaintext[0]]
+  for i in range(1, len(plaintext), 2):
+    base.append(plaintext[i][0]) #first elm of [alt0, alt1]
+    base.append(plaintext[i+1]) #more plaintext
+  #plaintext = [abc, [alt0, alt1], xyz, [alt2, alt3] ...]
+  #base = [abc, alt0, xyz, alt2, ...]
+  pdb.set_trace()
+  goal = to_bitfield(x(
+    b''.join([message for key, message in messages]),
+    pdms(messages, b''.join(base))))
+  vectors = []
+  for i in range(1, len(plaintext), 2):
+    vectors.append(to_bitfield(x(pdms(messages, plaintext[i-1][-15:] + plaintext[i][0] + plaintext[i+1][:15]),
+      pdms(messages, plaintext[i-1][-15:] + plaintext[i][1] + plaintext[i+1][:15])))) #jesus, why is this one line of code
+  toflips = solve(vectors, goal)
+  if toflips is None:
+    return None
+  r = [plaintext[0]]
+  for p, i in enumerate(range(1, len(plaintext), 2)):
+    r.append(plaintext[i][toflips[p]])
+    r.append(plaintext[i+1])
+  return b''.join(r)
 
 def pack_and_encode_messages(messages, plaintext):
   """
-  messages: array of (h(key),message) pairs where h(key) is a
-  plaintext: plaintext that has been run through a preparefunc, ie it looks like [b'abc', [a1, a1'], b'def', [a2, a2'] ...]
+  messages array: (h(key), encrypted(message)) pairs
+  plaintext array:plaintext that has been run through a preparefunc, ie it looks like [b'abc', [a1, a1'], b'def', [a2, a2'] ...]
   """
   return encode_messages([(key, pack_message(message)) for key, message in messages], plaintext)
 
 def pdms(messages, text):
-	return b''.join([partial_decode_message(key, text, len(message)) for (key, message) in messages])
+  """
+  partial_decode_messages, just runs partial_decode_message on all the messages and concatenate all the results
+  """
+  return b''.join([partial_decode_message(key, text, len(message)) for (key, message) in messages])
 
 def partial_decode_message(key, message, mylen):
-	assert type(key) is bytes
-	assert type(message) is bytes
-	r = bytes([0] * mylen)
-	for i in range(len(message) - 15):
-		r = x(r, encrypt_ofb(key, message[i:i+16], bytes([0] * mylen)))
-	return r
+  assert type(key) is bytes
+  assert type(message) is bytes
+  r = bytes([0] * mylen)
+  for i in range(len(message) - 15):
+  	r = x(r, encrypt_ofb(key, message[i:i+16], bytes([0] * mylen)))
+  return r
 
 def decode_and_decrypt_message(key, message):
-	key = h(key)[:16]
-	key2 = h(key)[:16]
-	mystr = partial_decode_message(key2, message, 16)
-	mylen = begin_unpack_message(mystr)
-	if mylen is None:
-		return None
-	mystr = partial_decode_message(key2, message, mylen)
-	if mystr is None:
-		return None
-	mystr = unpack_message(mystr)
-	if mystr is None:
-		return None
-	mystr = decrypt_message(key, mystr)
-	if mystr is None:
-		return None
-	return mystr
+  key = h(key)[:16]
+  key2 = h(key)[:16]
+  mystr = partial_decode_message(key2, message, 16)
+  mylen = begin_unpack_message(mystr) #length of message
+  if mylen is None:
+  	return None
+  mystr = partial_decode_message(key2, message, mylen)
+  if mystr is None:
+  	return None
+  mystr = unpack_message(mystr)
+  if mystr is None:
+  	return None
+  mystr = decrypt_message(key, mystr)
+  if mystr is None:
+  	return None
+  return mystr
 
 def xor(a, b):
 	assert type(a) is list

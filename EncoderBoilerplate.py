@@ -12,6 +12,5 @@ def encode(preparefunc, fileBytes, keyMessagePairs):
   """
   messages = [prepare_message(
     key.encode('utf-8'), message.encode('utf-8'))
-      for key, message in keyMessagePairs]
-
+      for key, message in keyMessagePairs] #h(key), encrypted(message) pairs
   return pack_and_encode_messages(messages, preparefunc(fileBytes))
