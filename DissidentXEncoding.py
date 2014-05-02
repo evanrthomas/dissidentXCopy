@@ -150,6 +150,36 @@ def to_bitfield(m):
       r.append((v >> i) & 1)
   return r
 
+def f(messageChunkSize):
+  """
+  returns the expected plaintext size needed to encode this message chunk size
+  """
+  return messageChunkSize*9
+
+def params():
+  return {"messageChunkSize": 2}
+
+def myEncode(key, message, plaintext):
+  plaintext = remove_too_short(plaintext)
+  mcs = params()["messageChunkSize"]
+  dptcs = f(mcs) #default plaintext chunk size
+  textIndex = 0
+  ret = b''
+  for messageIndex in range(0,len(message), mcs):
+    ptcs = dptcs
+    x = encode_messages(
+        [(key, message[messageIndex:messageIndex + mcs])],
+          plaintext[textIndex:textIndex + ptcs])
+    while x == None:
+      ptcs += 2
+      x = encode_messages(
+          [(key, message[messageIndex:messageIndex + mcs])],
+            plaintext[textIndex:textIndex + ptcs])
+    ret += x
+    textIndex += ptcs
+  return ret
+
+
 def encode_messages(messages, plaintext):
   """
   plaintext array: plaintext already prepared by preparefunc
@@ -157,15 +187,15 @@ def encode_messages(messages, plaintext):
           key bytes:h(key)
           message packed(message)
   """
-
-  plaintext = remove_too_short(plaintext)
+  if len(plaintext) %2 != 1:
+    plaintext.append(b'')
   base = [plaintext[0]]
   for i in range(1, len(plaintext), 2):
     base.append(plaintext[i][0]) #first elm of [alt0, alt1]
     base.append(plaintext[i+1]) #more plaintext
   #plaintext = [abc, [alt0, alt1], xyz, [alt2, alt3] ...]
   #base = [abc, alt0, xyz, alt2, ...]
-  pdb.set_trace()
+  #pdb.set_trace()
   goal = to_bitfield(x(
     b''.join([message for key, message in messages]),
     pdms(messages, b''.join(base))))
