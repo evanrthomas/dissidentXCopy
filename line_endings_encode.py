@@ -31,15 +31,15 @@ if __name__ == '__main__':
   fileBytes = f.read()
   f.close()
 
-  pdb.run("encode(endings_encode, fileBytes, [(argv[i], argv[i+1]) for i in range(2, len(argv), 2)] )")
 
-  #m = encode(endings_encode, fileBytes,
-  #    [(argv[i], argv[i+1]) for i in range(2, len(argv), 2)] )
+  m = encode(endings_encode, fileBytes,
+      [(argv[i], argv[i+1]) for i in range(2, len(argv), 2)] )
 
   if m is None:
     print('Error')
   else:
-    print(m)
+    pass
+    #print(m)
     #f = open(argv[1], 'bw')
     #f.write(m)
     #f.close()

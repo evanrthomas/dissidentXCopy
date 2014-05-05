@@ -71,7 +71,6 @@ def pack_message(message):
   return packed(message)
   """
   assert len(message) >= 4, message
-  pdb.set_trace()
   r = message[:4] #the mac of the encrypted message
   v = len(message) - 4 #length of the actual message
   lb = bytes([v] if v < 128 else [128 | v >> 8, v & 0xFF])
@@ -195,7 +194,6 @@ def encode_messages(messages, plaintext):
     base.append(plaintext[i+1]) #more plaintext
   #plaintext = [abc, [alt0, alt1], xyz, [alt2, alt3] ...]
   #base = [abc, alt0, xyz, alt2, ...]
-  #pdb.set_trace()
   goal = to_bitfield(x(
     b''.join([message for key, message in messages]),
     pdms(messages, b''.join(base))))
@@ -257,24 +255,24 @@ def xor(a, b):
 	return [x^y for x, y in zip(a, b)]
 
 def solve(vectors, goal):
-	active = [x + [0] * len(vectors) for x in vectors]
-	for i in range(len(active)):
-		active[i][len(goal) + i] = 1
-	for i in range(len(goal)):
-		p = i
-		while p < len(active) and active[p][i] == 0:
-			p += 1
-		if p == len(vectors):
-			return None
-		active[p], active[i] = active[i], active[p]
-		for j in range(len(active)):
-			if j != i and active[j][i]:
-				active[j] = xor(active[j], active[i])
-	r = [0] * len(active)
-	for i in range(len(goal)):
-		if goal[i]:
-			r = xor(r, active[i][len(goal):])
-	return r
+  active = [x + [0] * len(vectors) for x in vectors]
+  for i in range(len(active)):
+    active[i][len(goal) + i] = 1
+  for i in range(len(goal)):
+    p = i
+    while p < len(active) and active[p][i] == 0:
+      p += 1
+    if p == len(vectors):
+      return None
+    active[p], active[i] = active[i], active[p]
+    for j in range(len(active)):
+      if j != i and active[j][i]:
+        active[j] = xor(active[j], active[i])
+  r = [0] * len(active)
+  for i in range(len(goal)):
+    if goal[i]:
+      r = xor(r, active[i][len(goal):])
+  return r
 
 # -------------- testing ------------------
 from random import randrange
