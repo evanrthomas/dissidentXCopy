@@ -69,15 +69,17 @@ def encrypt(key, plaintext, iv=None):
   iv: bytes
   plaintext: bytes
   """
-  global params
+  print('key', key)
   if iv == None:
-    iv = bytes([0]*(params["default mcs"] +params["mac size"]))
-
-  assert len(iv) == params["default mcs"] + params["mac size"], iv
-  key = h(key)[:AES_BLOCK_SIZE]
+    iv = bytes([0]*AES_BLOCK_SIZE)
+  assert len(key) == 16, key
+  assert len(iv) == 16, iv
   return AES.new(key, AES.MODE_OFB, iv).encrypt(plaintext +
-      b'a' * (-len(plaintext) % AES_BLOCK_SIZE) #padding because block size is 16
-      )
+      b'a' * (-len(plaintext) % 16) #padding because block size is 16
+      )[:len(plaintext)] # strip the padding
+
+decrypt = encrypt #because AES ofb
+
 
 def remove_too_short(plaintext):
   """
@@ -187,7 +189,6 @@ def encodeChunk(key, messageChunk, preparedText, preparedTextIndex):
   an = altsNeeded(params["chunk size"])
   goal = h(key + preparedText[preparedTextIndex][:params["mac size"]])[:params["mac size"]] \
       + messageChunk
-  goal += bytes([0]*(params["chunk size"] - len(goal))) #add padding to goal
 
   toflips = None
   while toflips == None:
@@ -216,7 +217,13 @@ def encode(key, message, preparedText):
   message bytes
   preparedText arr:[text, [alt0, alt1], text, [alt0, alt1] ...]
   """
-  #message = encrypt(key, message)
+  assert len(message) == len(encrypt(key, message))
+
+  message += bytes([0]*(-len(message) %
+    params["default mcs"])) #add padding to message
+  message = encrypt(key, message)
+  print('encrypted message', message)
+  #print('premature decrypted', decrypt(key, message))
   preparedText = remove_too_short(preparedText)
   preparedText = enforceAltSpacing(preparedText, params["window size"])
   mcs = params["default mcs"]
@@ -241,11 +248,19 @@ def decode(plaintext):
     a = slideAndXorUntil(plaintext, index,
         lambda x: x[:macSize] == h(key + plaintext[index:index+macSize])[:macSize])
     if a == None:
-      return ans if ans != b'' else None
+      return decrypt(key, ans) if ans != b'' else None
     ans += a[0][macSize:]
     index = a[1]
+
+  ans = decrypt(key, ans)
   return ans
 
+def test_encrypt():
+  key = b'abcd' * 4
+  fullstr = bytes(list(range(256)))
+  for i in range(256):
+    mystr = fullstr[:i]
+    assert decrypt(key, encrypt(key, mystr)) == mystr
 
 def test_remove_too_short():
   assert remove_too_short([b'', [b'abc', b'aqc'], b'y']) == [b'a', [b'b', b'q'], b'cy']
@@ -311,6 +326,8 @@ def testAll():
   print('sucess: test flatten')
   testGenProblem()
   print('success: gen problem')
+  test_encrypt()
+  print('success: encrypt')
 
 if __name__ == "__main__":
   from line_endings_encode import endings_encode
@@ -322,5 +339,5 @@ if __name__ == "__main__":
   plaintextMessage = b'this is a test to see if encoding and then decoding a long sentence works'
 
   stegotext = encode(key, plaintextMessage, endings_encode(covertext))
-  print(decode(stegotext))
+  print('decoded', decode(stegotext))
 
