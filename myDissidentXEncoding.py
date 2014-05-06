@@ -166,12 +166,11 @@ def slideAndXorUntil(text, begin, constraint):
   chunk = bytes([0])
   ws = params["window size"]
   i = 0
-  while not(constraint(chunk)):
-    if begin + i + ws > len(text) - 1:
-      return None
+  while begin + i + ws < len(text):
     chunk = xor(chunk, h(key + text[begin + i:begin + i+ws])[:params["chunk size"]])
+    if constraint(chunk):
+      return chunk, i+ws
     i += 1
-  return chunk, i
 
 collections = dict((i,[]) for i in range(50))
 def slideAndXor(text, bucket):
@@ -184,11 +183,13 @@ def slideAndXor(text, bucket):
   return a
 
 def encodeChunk(key, messageChunk, preparedText, preparedTextIndex):
+  print('preparedTextIndex', preparedTextIndex, preparedText[preparedTextIndex])
   assert len(messageChunk) <= params["default mcs"], messageChunk
   an = altsNeeded(params["chunk size"])
   goal = h(key + preparedText[preparedTextIndex][:params["mac size"]])[:params["mac size"]] \
       + messageChunk
   goal += bytes([0]*(params["chunk size"] - len(goal))) #add padding to goal
+  print('goal', goal)
 
   toflips = None
   while toflips == None:
@@ -199,17 +200,10 @@ def encodeChunk(key, messageChunk, preparedText, preparedTextIndex):
     if preparedTextIndex + 2*an >= len(preparedText):
       return None
   an -= 1
-
-  #begin debug
-  delta = b''
-  for a,b in zip(deltaVectors, toflips):
-    if b == 1:
-      delta = xor(delta, a)
-  #current xor deltaXor = goal
-  #end debug
-
+  print('thinks it workd')
   encodedText = flatten(preparedText, preparedTextIndex,
       preparedTextIndex + 2*an, lambda i: toflips[i])
+
   return encodedText, preparedTextIndex + 2*an
 
 def flatten(pt, begin, end, altChoice):
@@ -253,6 +247,7 @@ def decode(plaintext):
       return ans if ans != b'' else None
     ans += a[0][macSize:]
     index = a[1]
+    print(a[0][macSize:], len(a[0][macSize:]))
   return ans
 
 
@@ -328,7 +323,7 @@ if __name__ == "__main__":
   key = h(password)[:AES_BLOCK_SIZE]
   #testAll()
   covertext = open('genesis.txt', 'rb').read()
-  plaintextMessage = b'hello'
+  plaintextMessage = b'this is a very long sentence eeeeeeeeeeeee'
 
   stegotext = encode(key, plaintextMessage, endings_encode(covertext))
   print(decode(stegotext))
