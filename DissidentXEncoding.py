@@ -348,4 +348,3 @@ if __name__ == "__main__":
   test_encrypt_ofb()
   test_x()
   test_xor()
-

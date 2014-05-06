@@ -12,10 +12,10 @@ mcs: message chunk size
 """
 AES_BLOCK_SIZE = 16
 key = None #h(password)[:AES_BLOCK_SIZE]
-params = {"default mcs": 13,
-          "mac size": 3,
+params = {"default mcs": 12,
+          "mac size": 4,
           "window size": 16,
-          "window spacing": 2}
+          "window spacing": 1}
 params["chunk size"] = params["mac size"] + params["default mcs"]
 assert params["window size"] > params["window spacing"]
 assert params["window size"] >= params["chunk size"]
@@ -27,6 +27,7 @@ def h(message):
   """
   return hashlib.sha3_256(message).digest()
 
+hdebug = h
 def xorBitfield(a, b):
   assert len(a) == len(b)
   return [x^y for x,y in zip(a,b)]
@@ -128,26 +129,23 @@ def enforceAltSpacing(preparedText, windowSize):
     i += 2
   return preparedText
 
-def genProblem(preparedText, begin, end):
-  assert type(preparedText[begin]) is bytes
+def genProblem(preparedText):
+  assert type(preparedText[0]) is bytes
   deltaVectors = []
   current = bytes([0])
-  wsp, ws = params["window spacing"], params["window size"]
-  for i in range(begin, end, 2): #go through "alt absent" text
+  ws = params["window size"]
+  for i in range(0, len(preparedText), 2): #go through "alt absent" text
     current = xor(current,
-        slideAndXor(preparedText[i],0, len(preparedText[i])))
+        slideAndXor(preparedText[i], 0))
+  for i in range(1, len(preparedText), 2): #go through "alt present text"
+    before = preparedText[i-1][-(ws-1):]
+    after = preparedText[i+1][:ws-1] if i + 1 <len(preparedText) else b''
+    alt0 = before + preparedText[i][0] +  after
+    alt1 = before + preparedText[i][1] +  after
+    alt0 = slideAndXor(alt0, 0)
+    alt1 = slideAndXor(alt1, 1)
 
-  for i in range(begin +1, end, 2): #go through "alt present text"
-    before = preparedText[i-1] if i > 0 else b''
-    after = preparedText[i+1] if i + 1 < end else b''
-    alt0 = b''.join([before, preparedText[i][0], after])
-    alt1 = b''.join([before, preparedText[i][1], after])
-    alt0 = slideAndXor(alt0, len(before) - ws + 1,
-        len(before) + len(preparedText[i][0]) + ws - 1)
-    alt1 = slideAndXor(alt1, len(before) - ws + 1,
-        len(before) + len(preparedText[i][1]) + ws - 1)
     current = xor(current, alt0)
-    #toNum = lambda barr: [int(x) for x in barr]
     deltaVectors.append(xor(alt0, alt1))
   return current, deltaVectors
 
@@ -162,27 +160,40 @@ def to_bitfield(m):
       r.append((v >> i) & 1)
   return r
 
-def slideAndXor(text, begin, end):
+def slideAndXorUntil(text, begin, constraint):
+  global key
+  assert begin < len(text)
+  chunk = bytes([0])
+  ws = params["window size"]
+  i = 0
+  while not(constraint(chunk)):
+    if begin + i + ws > len(text) - 1:
+      return None
+    chunk = xor(chunk, h(key + text[begin + i:begin + i+ws])[:params["chunk size"]])
+    i += ws
+  return chunk, i
+
+collections = dict((i,[]) for i in range(50))
+def slideAndXor(text, bucket):
   global key
   a = bytes([0])
   ws = params["window size"]
-  for i in range(begin, end - ws, params["window spacing"]):
-    a = xor(a, h(int(random.randint(1, 5000)).to_bytes(2, 'big')
-      +key +text[i:i+ws])[:params["chunk size"]])
+  for i in range(0, len(text) - ws + 1):
+    collections[bucket].append(text[i:i+ws])
+    a = xor(a, h(key + text[i:i+ws])[:params["chunk size"]])
   return a
 
 def encodeChunk(key, messageChunk, preparedText, preparedTextIndex):
   assert len(messageChunk) <= params["default mcs"], messageChunk
   an = altsNeeded(params["chunk size"])
   print('alts needed', an)
-  goal = h(key + preparedText[preparedTextIndex])[:params["mac size"]] \
+  goal = h(key + preparedText[preparedTextIndex][:params["mac size"]])[:params["mac size"]] \
       + messageChunk
   goal += bytes([0]*(params["chunk size"] - len(goal))) #add padding to goal
 
   toflips = None
   while toflips == None:
-    current, deltaVectors = genProblem(preparedText,
-        preparedTextIndex, preparedTextIndex + 2*an)
+    current, deltaVectors = genProblem(preparedText[preparedTextIndex: preparedTextIndex + 2*an])
     toflips = solve([to_bitfield(x) for x in deltaVectors],
         to_bitfield(xor(goal, current)))
     an += 1
@@ -190,17 +201,23 @@ def encodeChunk(key, messageChunk, preparedText, preparedTextIndex):
       return None
   an -= 1
 
-  encodedText = b''
-  for i in range(preparedTextIndex, preparedTextIndex + 2*an, 2):
-    encodedText += preparedText[i]
-    assert (i - preparedTextIndex) % 2 == 0
-    encodedText += preparedText[i+1][toflips[int((i - preparedTextIndex)/2)]]
+  #begin debug
+  delta = b''
+  for a,b in zip(deltaVectors, toflips):
+    if b == 1:
+      delta = xor(delta, a)
+  #current xor deltaXor = goal
+  #end debug
+
+  encodedText = flatten(preparedText, preparedTextIndex,
+      preparedTextIndex + 2*an, lambda i: toflips[i])
   return encodedText, preparedTextIndex + 2*an
 
 def flatten(pt, begin, end, altChoice):
   ans = b''
   for i in range(begin, end, 2):
-    ans += pt[i] + (pt[i+1][altChoice] if i+1 < end else b'')
+    ithAlt = int((i-begin)/2)
+    ans += pt[i] + (pt[i+1][altChoice(ithAlt)] if i+1 < end else b'')
   return ans
 
 def encode(key, message, preparedText):
@@ -223,23 +240,21 @@ def encode(key, message, preparedText):
       return None
     encoded += a[0]
     preparedTextIndex = a[1]
-  return encoded + flatten(preparedText, preparedTextIndex, len(preparedText), 0)
+  return encoded + flatten(preparedText,
+      preparedTextIndex, len(preparedText), lambda x: 0)
 
 def decode(plaintext):
   ans = b''
   macSize = params["mac size"]
   index = 0
   while index < len(plaintext):
-    chunk = slideAndXorUntil(plaintext, index,
-        lambda x: x[:macSize] == plaintext[index:index+macSize])
-    if chunk == None:
-      return None
-    ans += chunk
-  index += len(chunk)
-
-
-
-
+    a = slideAndXorUntil(plaintext, index,
+        lambda x: x[:macSize] == h(key + plaintext[index:index+macSize])[:macSize])
+    if a == None:
+      return ans if ans != b'' else None
+    ans += a[0]
+    index = a[1]
+  return ans
 
 
 def test_remove_too_short():
@@ -266,22 +281,55 @@ def test_solve():
       t = xorBitfield(t, vectors[i])
   assert t == goal
 
+def testFlatten():
+  arr = [b'a', [b'b', b'c'], b'd', [b'e', 'f'], b'g']
+  toflip = [1, 0]
+  flat = b'acdeg'
+  assert flatten(arr, 0, len(arr), lambda x: toflip[x]) == flat
+
+def diff(arr1, arr2):
+  justArr1, justArr2 = [], []
+  for x in arr1:
+    if not(x in arr2):
+      justArr1.append(x)
+  for x in arr2:
+    if not(x in arr1):
+      justArr2.append(x)
+  return justArr1, justArr2
+
+
+def testGenProblem():
+  from line_endings_encode import endings_encode
+  prepared =  endings_encode(open('genesis.txt', 'rb').read())
+  origFlat = flatten(prepared, 0, 6, lambda x: 0) #3 alts
+  current, deltaVectors = genProblem(prepared[0:6])
+
+  assert slideAndXor(origFlat, 2) == current
+
+  for i in range(len(deltaVectors)):
+    ithFlat = flatten(prepared, 0, 6, lambda x: int(i == x))
+    assert xor(current, slideAndXor(ithFlat, 40)) == deltaVectors[i]
+
 def testAll():
   test_remove_too_short()
   print('success: test remove too short')
   testEnforceAltSpacing()
   print('success: test enforce alt spacing')
-  #test_solve()
-  #print('success: test solve')
+  test_solve()
+  print('success: test solve')
+  testFlatten()
+  print('sucess: test flatten')
+  testGenProblem()
+  print('success: gen problem')
 
 if __name__ == "__main__":
   from line_endings_encode import endings_encode
-  testAll()
+  global key
   password = b'password'
+  key = h(password)[:AES_BLOCK_SIZE]
+  testAll()
   covertext = open('genesis.txt', 'rb').read()
   plaintextMessage = b'hello'
-  global key
-  key = h(password)[:AES_BLOCK_SIZE]
 
   stegotext = encode(key, plaintextMessage, endings_encode(covertext))
-  #print(stegotext)
+  print(decode(stegotext))
