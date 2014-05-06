@@ -1,3 +1,19 @@
+def line_endings_encode(p):
+  r = []
+  for s in p.split(b'\n'):
+    if r:
+      r.append([b'\n', b' \n'])
+    r.append(s.rstrip())
+  return r
+
+def oxford_encode(p):
+    r = []
+    for s in p.split(b', and'):
+        if r:
+            r.append([b', and', b' and'])
+        r.append(s)
+    return r
+
 def tab_cover(p):
   covertext = None
   for s in p.split(b'\n'):
@@ -20,7 +36,3 @@ def tab_cover(p):
     else:
       covertext[-1] += s
   return covertext
-
-if __name__ == '__main__':
-  from EncoderBoilerplate import encode
-  encode(tab_cover)

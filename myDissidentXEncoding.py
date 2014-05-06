@@ -7,6 +7,7 @@ from Crypto.Cipher import AES
 import pdb
 from math import log as ln
 import random
+import cProfile
 """
 mcs: message chunk size
 """
@@ -27,7 +28,6 @@ def h(message):
   """
   return hashlib.sha3_256(message).digest()
 
-hdebug = h
 def xorBitfield(a, b):
   assert len(a) == len(b)
   return [x^y for x,y in zip(a,b)]
@@ -69,7 +69,6 @@ def encrypt(key, plaintext, iv=None):
   iv: bytes
   plaintext: bytes
   """
-  print('key', key)
   if iv == None:
     iv = bytes([0]*AES_BLOCK_SIZE)
   assert len(key) == 16, key
@@ -222,8 +221,6 @@ def encode(key, message, preparedText):
   message += bytes([0]*(-len(message) %
     params["default mcs"])) #add padding to message
   message = encrypt(key, message)
-  print('encrypted message', message)
-  #print('premature decrypted', decrypt(key, message))
   preparedText = remove_too_short(preparedText)
   preparedText = enforceAltSpacing(preparedText, params["window size"])
   mcs = params["default mcs"]
@@ -329,15 +326,26 @@ def testAll():
   test_encrypt()
   print('success: encrypt')
 
-if __name__ == "__main__":
-  from line_endings_encode import endings_encode
+def main():
+  from encoders import line_endings_encode
   global key
   password = b'password'
   key = h(password)[:AES_BLOCK_SIZE]
   #testAll()
   covertext = open('genesis.txt', 'rb').read()
-  plaintextMessage = b'this is a test to see if encoding and then decoding a long sentence works'
+  plaintextMessage = b'this is a long sentence that we are testing out looooooong'*2
 
-  stegotext = encode(key, plaintextMessage, endings_encode(covertext))
-  print('decoded', decode(stegotext))
+  stegotext = encode(key, plaintextMessage, line_endings_encode(covertext))
+  #print('decoded', decode(stegotext))
+
+def profile():
+  pr = cProfile.Profile()
+  pr.enable()
+  main()
+  pr.disable()
+  pr.print_stats(sort="cumtime")
+
+if __name__ == "__main__":
+  main()
+  profile()
 
