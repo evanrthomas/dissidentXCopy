@@ -1,0 +1,64 @@
+Before Sage:
+  covertext: genesis.txt
+  message: b'this is a long sentence that we are testing out looooooong'*2
+  4007455 function calls in 4.633 seconds
+
+    Ordered by: cumulative time
+
+    ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+         1    0.000    0.000    4.633    4.633 myDissidentXEncoding.py:329(main)
+         1    0.000    0.000    4.632    4.632 myDissidentXEncoding.py:213(encode)
+        10    0.002    0.000    4.626    0.463 myDissidentXEncoding.py:186(encodeChunk)
+        14    0.113    0.008    2.558    0.183 myDissidentXEncoding.py:45(solve)
+    116475    0.100    0.000    2.441    0.000 myDissidentXEncoding.py:31(xorBitfield) #that list comprehension in xorBitfield
+    116475    2.326    0.000    2.326    0.000 myDissidentXEncoding.py:33(<listcomp>)
+        14    0.007    0.000    1.996    0.143 myDissidentXEncoding.py:133(genProblem)
+      5559    0.415    0.000    1.975    0.000 myDissidentXEncoding.py:177(slideAndXor)
+    297588    0.514    0.000    0.900    0.000 myDissidentXEncoding.py:35(xor)
+    292026    0.190    0.000    0.646    0.000 myDissidentXEncoding.py:24(h)
+    292026    0.344    0.000    0.344    0.000 {method 'digest' of '_sha3.SHA3' objects}
+    595176    0.162    0.000    0.162    0.000 {built-in method from_bytes}
+    297588    0.114    0.000    0.114    0.000 {method 'to_bytes' of 'int' objects}
+    292026    0.111    0.000    0.111    0.000 {built-in method sha3_256}
+    297588    0.069    0.000    0.069    0.000 {built-in method max}
+      1867    0.054    0.000    0.067    0.000 myDissidentXEncoding.py:157(to_bitfield)
+        14    0.000    0.000    0.067    0.005 myDissidentXEncoding.py:195(<listcomp>)
+    860891    0.059    0.000    0.059    0.000 {built-in method len}
+    538977    0.042    0.000    0.042    0.000 {method 'append' of 'list' objects}
+         1    0.004    0.004    0.005    0.005 myDissidentXEncoding.py:83(remove_too_short)
+        14    0.002    0.000    0.003    0.000 myDissidentXEncoding.py:46(<listcomp>)
+        11    0.002    0.000    0.002    0.000 myDissidentXEncoding.py:206(flatten)
+         1    0.001    0.001    0.001    0.001 encoders.py:1(line_endings_encode)
+         1    0.000    0.000    0.001    0.001 myDissidentXEncoding.py:122(enforceAltSpacing)
+         1    0.000    0.000    0.000    0.000 {method 'split' of 'bytes' objects}
+      1534    0.000    0.000    0.000    0.000 {method 'rstrip' of 'bytes' objects}
+      1324    0.000    0.000    0.000    0.000 myDissidentXEncoding.py:202(<lambda>)
+
+  4007455 function calls in 4.709 seconds
+   Ordered by: internal time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   116475    2.312    0.000    2.312    0.000 myDissidentXEncoding.py:33(<listcomp>)   #that list comprehension in xorBitfield
+   297588    0.533    0.000    0.925    0.000 myDissidentXEncoding.py:35(xor)
+     5559    0.439    0.000    2.063    0.000 myDissidentXEncoding.py:177(slideAndXor)
+   292026    0.356    0.000    0.356    0.000 {method 'digest' of '_sha3.SHA3' objects}
+   292026    0.212    0.000    0.685    0.000 myDissidentXEncoding.py:24(h)
+   595176    0.163    0.000    0.163    0.000 {built-in method from_bytes}
+   297588    0.119    0.000    0.119    0.000 {method 'to_bytes' of 'int' objects}
+   292026    0.116    0.000    0.116    0.000 {built-in method sha3_256}
+       14    0.114    0.008    2.548    0.182 myDissidentXEncoding.py:45(solve)
+   116475    0.104    0.000    2.430    0.000 myDissidentXEncoding.py:31(xorBitfield)
+   297588    0.066    0.000    0.066    0.000 {built-in method max}
+   860891    0.060    0.000    0.060    0.000 {built-in method len}
+     1867    0.050    0.000    0.064    0.000 myDissidentXEncoding.py:157(to_bitfield)
+   538977    0.042    0.000    0.042    0.000 {method 'append' of 'list' objects}
+       14    0.007    0.000    2.085    0.149 myDissidentXEncoding.py:133(genProblem)
+        1    0.004    0.004    0.005    0.005 myDissidentXEncoding.py:83(remove_too_short)
+       14    0.002    0.000    0.003    0.000 myDissidentXEncoding.py:46(<listcomp>)
+       11    0.002    0.000    0.003    0.000 myDissidentXEncoding.py:206(flatten)
+       10    0.002    0.000    4.701    0.470 myDissidentXEncoding.py:186(encodeChunk)
+        1    0.001    0.001    0.001    0.001 encoders.py:1(line_endings_encode)
+        1    0.000    0.000    0.001    0.001 myDissidentXEncoding.py:122(enforceAltSpacing)
+       14    0.000    0.000    0.063    0.005 myDissidentXEncoding.py:195(<listcomp>)
+        1    0.000    0.000    4.707    4.707 myDissidentXEncoding.py:213(encode)
+

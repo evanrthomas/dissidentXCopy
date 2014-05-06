@@ -38,9 +38,12 @@ def xor(m1, m2):
     m1: bytes
     m2: bytes
   """
-  assert type(m1) is bytes
-  assert type(m2) is bytes
-  return (int.from_bytes(m1, 'big') ^ int.from_bytes(m2, 'big')).to_bytes(max(len(m1),len(m2)), 'big')
+  assert m1 == None or m2 == None  or len(m1) == len(m2)
+  if m1 == None:
+    return m2
+  elif m2 == None:
+    return m1
+  return ''.join(chr(ord(x) ^ ord(y)) for x,y in zip(m1, m2))
 
 def solve(vectors, goal):
   active = [x + [0] * len(vectors) for x in vectors]
@@ -70,11 +73,11 @@ def encrypt(key, plaintext, iv=None):
   plaintext: bytes
   """
   if iv == None:
-    iv = bytes([0]*AES_BLOCK_SIZE)
-  assert len(key) == 16, key
-  assert len(iv) == 16, iv
+    iv = '\x00'*AES_BLOCK_SIZE
+  assert len(key) == AES_BLOCK_SIZE, key
+  assert len(iv) == AES_BLOCK_SIZE, iv
   return AES.new(key, AES.MODE_OFB, iv).encrypt(plaintext +
-      b'a' * (-len(plaintext) % 16) #padding because block size is 16
+      'a' * (-len(plaintext) % 16) #padding because block size is 16
       )[:len(plaintext)] # strip the padding
 
 decrypt = encrypt #because AES ofb
@@ -90,7 +93,7 @@ def remove_too_short(plaintext):
   c' = c - pre(b,c) - suf(b,c)
   and pre,suf are funcitons that return the longest common prefix/suffix or their arguments
   """
-  p2 = [b'']
+  p2 = ['']
   for i in range(0, len(plaintext)-1, 2):
     assert((type(plaintext[i]) is bytes) and (type(plaintext[i+1])  is list)) #alternates [text, [alt0, alt1], text ...]
     p2[-1] += plaintext[i]
@@ -113,7 +116,7 @@ def remove_too_short(plaintext):
         a = a[:-j]
         b = b[:-j]
       else:
-        excess = b''
+        excess = ''
       p2.append([a, b])
       p2.append(excess)
   p2[-1] += plaintext[-1]
@@ -133,19 +136,22 @@ def enforceAltSpacing(preparedText, windowSize):
 def genProblem(preparedText):
   assert type(preparedText[0]) is bytes
   deltaVectors = []
-  current = bytes([0])
+  current = None
   ws = params["window size"]
   for i in range(0, len(preparedText), 2): #go through "alt absent" text
     current = xor(current,
-        slideAndXor(preparedText[i], 0))
+        slideAndXor(preparedText[i]))
   for i in range(1, len(preparedText), 2): #go through "alt present text"
     before = preparedText[i-1][-(ws-1):]
-    after = preparedText[i+1][:ws-1] if i + 1 <len(preparedText) else b''
+    after = preparedText[i+1][:ws-1] if i + 1 <len(preparedText) else ''
     alt0 = before + preparedText[i][0] +  after
     alt1 = before + preparedText[i][1] +  after
-    alt0 = slideAndXor(alt0, 0)
-    alt1 = slideAndXor(alt1, 1)
+    #print 'alt0', len(before), len(preparedText[i][0]), len(after)
+    alt0 = slideAndXor(alt0)
+    alt1 = slideAndXor(alt1)
 
+    #print before, preparedText[i][0], after
+    #print current, alt0, alt1
     current = xor(current, alt0)
     deltaVectors.append(xor(alt0, alt1))
   return current, deltaVectors
@@ -157,6 +163,7 @@ def altsNeeded(numBytes):
 def to_bitfield(m):
   r = []
   for v in m:
+    v = ord(v)
     for i in range(8):
       r.append((v >> i) & 1)
   return r
@@ -164,7 +171,7 @@ def to_bitfield(m):
 def slideAndXorUntil(text, begin, constraint):
   global key
   assert begin < len(text)
-  chunk = bytes([0])
+  chunk = None
   ws = params["window size"]
   i = 0
   while begin + i + ws < len(text):
@@ -173,14 +180,13 @@ def slideAndXorUntil(text, begin, constraint):
       return chunk, begin + i+ws
     i += 1
 
-collections = dict((i,[]) for i in range(50))
-def slideAndXor(text, bucket):
+def slideAndXor(text):
   global key
-  a = bytes([0])
+  a = None
   ws = params["window size"]
   for i in range(0, len(text) - ws + 1):
-    collections[bucket].append(text[i:i+ws])
     a = xor(a, h(key + text[i:i+ws])[:params["chunk size"]])
+
   return a
 
 def encodeChunk(key, messageChunk, preparedText, preparedTextIndex):
@@ -204,10 +210,10 @@ def encodeChunk(key, messageChunk, preparedText, preparedTextIndex):
   return encodedText, preparedTextIndex + 2*an
 
 def flatten(pt, begin, end, altChoice):
-  ans = b''
+  ans = ''
   for i in range(begin, end, 2):
     ithAlt = int((i-begin)/2)
-    ans += pt[i] + (pt[i+1][altChoice(ithAlt)] if i+1 < end else b'')
+    ans += pt[i] + (pt[i+1][altChoice(ithAlt)] if i+1 < end else '')
   return ans
 
 def encode(key, message, preparedText):
@@ -218,15 +224,14 @@ def encode(key, message, preparedText):
   """
   assert len(message) == len(encrypt(key, message))
 
-  message += bytes([0]*(-len(message) %
-    params["default mcs"])) #add padding to message
+  message += '\x00'*(-len(message) % params["default mcs"]) #add padding to message
   message = encrypt(key, message)
   preparedText = remove_too_short(preparedText)
   preparedText = enforceAltSpacing(preparedText, params["window size"])
   mcs = params["default mcs"]
   messageIndex = 0
   preparedTextIndex = 0
-  encoded = b''
+  encoded = ''
   for messageIndex in range(0,len(message), mcs):
     a = encodeChunk(key, message[messageIndex: messageIndex+mcs],
         preparedText, preparedTextIndex)
@@ -238,14 +243,14 @@ def encode(key, message, preparedText):
       preparedTextIndex, len(preparedText), lambda x: 0)
 
 def decode(plaintext):
-  ans = b''
+  ans = ''
   macSize = params["mac size"]
   index = 0
   while index < len(plaintext):
     a = slideAndXorUntil(plaintext, index,
         lambda x: x[:macSize] == h(key + plaintext[index:index+macSize])[:macSize])
     if a == None:
-      return decrypt(key, ans) if ans != b'' else None
+      return decrypt(key, ans) if ans != '' else None
     ans += a[0][macSize:]
     index = a[1]
 
@@ -253,7 +258,7 @@ def decode(plaintext):
   return ans
 
 def test_encrypt():
-  key = b'abcd' * 4
+  key = 'abcd' * 4
   fullstr = bytes(list(range(256)))
   for i in range(256):
     mystr = fullstr[:i]
@@ -284,9 +289,9 @@ def test_solve():
   assert t == goal
 
 def testFlatten():
-  arr = [b'a', [b'b', b'c'], b'd', [b'e', 'f'], b'g']
+  arr = ['a', ['b', 'c'], 'd', ['e', 'f'], 'g']
   toflip = [1, 0]
-  flat = b'acdeg'
+  flat = 'acdeg'
   assert flatten(arr, 0, len(arr), lambda x: toflip[x]) == flat
 
 def diff(arr1, arr2):
@@ -301,16 +306,16 @@ def diff(arr1, arr2):
 
 
 def testGenProblem():
-  from line_endings_encode import endings_encode
-  prepared =  endings_encode(open('genesis.txt', 'rb').read())
+  from encoders import line_endings_encode
+  prepared =  line_endings_encode(open('genesis.txt', 'r').read())
   origFlat = flatten(prepared, 0, 6, lambda x: 0) #3 alts
   current, deltaVectors = genProblem(prepared[0:6])
 
-  assert slideAndXor(origFlat, 2) == current
+  assert slideAndXor(origFlat) == current
 
   for i in range(len(deltaVectors)):
     ithFlat = flatten(prepared, 0, 6, lambda x: int(i == x))
-    assert xor(current, slideAndXor(ithFlat, 40)) == deltaVectors[i]
+    assert xor(current, slideAndXor(ithFlat)) == deltaVectors[i]
 
 def testAll():
   test_remove_too_short()
@@ -320,32 +325,40 @@ def testAll():
   test_solve()
   print('success: test solve')
   testFlatten()
-  print('sucess: test flatten')
+  print('success: test flatten')
   testGenProblem()
   print('success: gen problem')
   test_encrypt()
   print('success: encrypt')
+  assert xorBitfield([0, 0, 1, 1], [0, 1, 0, 1]) == [0, 1, 1, 0]
+  print('success: xorBitfield')
+  assert xor(xor(b'abc', b'def'), b'def') == b'abc'
+  print('success: xor')
 
 def main():
   from encoders import line_endings_encode
   global key
-  password = b'password'
+  password = 'password'
   key = h(password)[:AES_BLOCK_SIZE]
-  #testAll()
-  covertext = open('genesis.txt', 'rb').read()
-  plaintextMessage = b'this is a long sentence that we are testing out looooooong'*2
+  testAll()
+  covertext = open('genesis.txt', 'r').read()
+  plaintextMessage = 'this is a long sentence that we are testing out looooooong'*2
 
   stegotext = encode(key, plaintextMessage, line_endings_encode(covertext))
+  return stegotext
   #print('decoded', decode(stegotext))
 
 def profile():
   pr = cProfile.Profile()
   pr.enable()
-  main()
+  m = main()
   pr.disable()
-  pr.print_stats(sort="cumtime")
+  if m == None:
+    print("didn't work")
+  else:
+    pr.print_stats(sort="tottime")
 
 if __name__ == "__main__":
-  main()
-  profile()
+  print decode(main())
+  #profile()
 
