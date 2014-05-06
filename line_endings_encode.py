@@ -1,5 +1,5 @@
 from sys import argv
-from DissidentXEncoding import prepare_message, pack_and_encode_messages, myEncode
+from DissidentXEncoding import prepare_message, pack_and_encode_messages
 import pdb
 
 def endings_encode(p):
@@ -23,11 +23,12 @@ def encode(preparefunc, fileBytes, keyMessagePairs):
   messages = [prepare_message(
     key.encode('utf-8'), message.encode('utf-8'))
       for key, message in keyMessagePairs] #h(key), encrypted(message) pairs
-  return myEncode(messages[0][0], messages[0][1], preparefunc(fileBytes))
+  return encode(messages[0][0], messages[0][1], preparefunc(fileBytes))
 
 if __name__ == '__main__':
 
-  f = open(argv[1], 'br')
+  filename = argv[1]
+  f = open(filename, 'br')
   fileBytes = f.read()
   f.close()
 
@@ -38,8 +39,7 @@ if __name__ == '__main__':
   if m is None:
     print('Error')
   else:
-    pass
-    #print(m)
-    #f = open(argv[1], 'bw')
-    #f.write(m)
-    #f.close()
+    print('Success')
+    f = open(filename+'.encoded', 'bw')
+    f.write(m)
+    f.close()

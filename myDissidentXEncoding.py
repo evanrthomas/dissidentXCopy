@@ -170,7 +170,7 @@ def slideAndXorUntil(text, begin, constraint):
     if begin + i + ws > len(text) - 1:
       return None
     chunk = xor(chunk, h(key + text[begin + i:begin + i+ws])[:params["chunk size"]])
-    i += ws
+    i += 1
   return chunk, i
 
 collections = dict((i,[]) for i in range(50))
@@ -186,7 +186,6 @@ def slideAndXor(text, bucket):
 def encodeChunk(key, messageChunk, preparedText, preparedTextIndex):
   assert len(messageChunk) <= params["default mcs"], messageChunk
   an = altsNeeded(params["chunk size"])
-  print('alts needed', an)
   goal = h(key + preparedText[preparedTextIndex][:params["mac size"]])[:params["mac size"]] \
       + messageChunk
   goal += bytes([0]*(params["chunk size"] - len(goal))) #add padding to goal
@@ -252,7 +251,7 @@ def decode(plaintext):
         lambda x: x[:macSize] == h(key + plaintext[index:index+macSize])[:macSize])
     if a == None:
       return ans if ans != b'' else None
-    ans += a[0]
+    ans += a[0][macSize:]
     index = a[1]
   return ans
 
@@ -327,7 +326,7 @@ if __name__ == "__main__":
   global key
   password = b'password'
   key = h(password)[:AES_BLOCK_SIZE]
-  testAll()
+  #testAll()
   covertext = open('genesis.txt', 'rb').read()
   plaintextMessage = b'hello'
 
