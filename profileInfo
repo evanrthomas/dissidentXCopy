@@ -1,4 +1,4 @@
-Before Sage:
+First
   covertext: genesis.txt
   message: b'this is a long sentence that we are testing out looooooong'*2
   4007455 function calls in 4.633 seconds
@@ -61,4 +61,83 @@ Before Sage:
         1    0.000    0.000    0.001    0.001 myDissidentXEncoding.py:122(enforceAltSpacing)
        14    0.000    0.000    0.063    0.005 myDissidentXEncoding.py:195(<listcomp>)
         1    0.000    0.000    4.707    4.707 myDissidentXEncoding.py:213(encode)
+
+
+Python 2.7 compatible
+A good bit of the extra time here comes from having to xor byte by byte instead of converting to integer and xoring
+ 22328642 function calls in 8.520 seconds
+
+   Ordered by: internal time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+  4987944    2.287    0.000    3.197    0.000 myDissidentXEncoding.py:46(<genexpr>) #this line in xor ''.join(chr(ord(x) ^ ord(y)) for x,y in zip(m1, m2))
+   124891    1.910    0.000    2.370    0.000 myDissidentXEncoding.py:31(xorBitfield)
+   293410    0.776    0.000    3.973    0.000 {method 'join' of 'str' objects}
+   418301    0.769    0.000    0.769    0.000 {zip}
+  9418940    0.500    0.000    0.500    0.000 {ord}
+   299011    0.476    0.000    4.821    0.000 myDissidentXEncoding.py:35(xor)
+   293435    0.424    0.000    0.424    0.000 {method 'digest' of '_sha3.SHA3' objects}
+  4694534    0.411    0.000    0.411    0.000 {chr}
+     5572    0.323    0.000    5.820    0.001 myDissidentXEncoding.py:183(slideAndXor)
+   293435    0.196    0.000    0.758    0.000 myDissidentXEncoding.py:24(h)
+   293435    0.139    0.000    0.139    0.000 {_sha3.sha3_256}
+       15    0.124    0.008    2.496    0.166 myDissidentXEncoding.py:48(solve)
+   872847    0.065    0.000    0.065    0.000 {len}
+     1867    0.056    0.000    0.077    0.000 myDissidentXEncoding.py:163(to_bitfield)
+   250040    0.016    0.000    0.016    0.000 {method 'append' of 'list' objects}
+    17024    0.010    0.000    0.011    0.000 random.py:173(randrange)
+    37586    0.009    0.000    0.009    0.000 {range}
+       15    0.006    0.000    5.890    0.393 myDissidentXEncoding.py:136(genProblem)
+        1    0.004    0.004    0.182    0.182 myDissidentXEncoding.py:278(test_solve)
+        5    0.004    0.001    0.004    0.001 myDissidentXEncoding.py:86(remove_too_short)
+        2    0.002    0.001    0.004    0.002 encoders.py:1(line_endings_encode)
+       10    0.002    0.000    8.294    0.829 myDissidentXEncoding.py:192(encodeChunk)
+      514    0.001    0.000    0.004    0.000 myDissidentXEncoding.py:68(encrypt)
+       16    0.001    0.000    0.001    0.000 myDissidentXEncoding.py:212(flatten)
+    17024    0.001    0.000    0.001    0.000 {method 'random' of '_random.Random' objects}
+      514    0.001    0.000    0.001    0.000 {built-in method encrypt}
+        2    0.001    0.000    0.001    0.000 myDissidentXEncoding.py:125(enforceAltSpacing)
+      514    0.001    0.000    0.001    0.000 blockalgo.py:136(__init__)
+        2    0.001    0.000    0.001    0.000 {method 'split' of 'str' objects}
+     3068    0.000    0.000    0.000    0.000 {method 'rstrip' of 'str' objects}
+      514    0.000    0.000    0.002    0.000 AES.py:55(__init__)
+        1    0.000    0.000    8.520    8.520 myDissidentXEncoding.py:337(main)
+      514    0.000    0.000    0.000    0.000 {Crypto.Cipher._AES.new}
+      514    0.000    0.000    0.002    0.000 AES.py:61(new)
+
+After Sage:
+  ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   116475    2.856    0.000    3.540    0.000 myDissidentXEncoding.sage.py:32(xorBitfield)
+  4964017    2.483    0.000    3.496    0.000 myDissidentXEncoding.sage.py:47(<genexpr>)
+   408476    1.102    0.000    1.102    0.000 {zip}
+   292001    0.892    0.000    4.388    0.000 {method 'join' of 'str' objects}
+  4672016    0.517    0.000    0.517    0.000 {chr}
+   297588    0.508    0.000    5.379    0.000 myDissidentXEncoding.sage.py:36(xor)
+  9373904    0.498    0.000    0.498    0.000 {ord}
+   292026    0.370    0.000    0.370    0.000 {method 'digest' of '_sha3.SHA3' objects}
+     5559    0.361    0.000    6.408    0.001 myDissidentXEncoding.sage.py:184(slideAndXor)
+   292026    0.240    0.000    0.762    0.000 myDissidentXEncoding.sage.py:25(h)
+   292026    0.152    0.000    0.152    0.000 {_sha3.sha3_256}
+       14    0.131    0.009    3.674    0.262 myDissidentXEncoding.sage.py:49(solve)
+     1867    0.070    0.000    0.092    0.000 myDissidentXEncoding.sage.py:164(to_bitfield)
+   849717    0.069    0.000    0.069    0.000 {len}
+   246962    0.015    0.000    0.015    0.000 {method 'append' of 'list' objects}
+    37293    0.012    0.000    0.012    0.000 {range}
+       14    0.008    0.001    6.515    0.465 myDissidentXEncoding.sage.py:137(genProblem)
+        1    0.005    0.005    0.005    0.005 myDissidentXEncoding.sage.py:87(remove_too_short)
+       10    0.002    0.000   10.286    1.029 myDissidentXEncoding.sage.py:193(encodeChunk)
+        1    0.002    0.002    0.003    0.003 encoders.py:1(line_endings_encode)
+       11    0.001    0.000    0.002    0.000 myDissidentXEncoding.sage.py:213(flatten)
+        1    0.001    0.001    0.001    0.001 myDissidentXEncoding.sage.py:126(enforceAltSpacing)
+        1    0.000    0.000   10.296   10.296 myDissidentXEncoding.sage.py:338(main)
+        1    0.000    0.000    0.000    0.000 {method 'split' of 'str' objects}
+     1534    0.000    0.000    0.000    0.000 {method 'rstrip' of 'str' objects}
+     1324    0.000    0.000    0.000    0.000 myDissidentXEncoding.sage.py:209(<lambda>)
+        1    0.000    0.000   10.292   10.292 myDissidentXEncoding.sage.py:220(encode)
+        1    0.000    0.000    0.000    0.000 {method 'read' of 'file' objects}
+       10    0.000    0.000    0.000    0.000 {math.log}
+       10    0.000    0.000    0.000    0.000 myDissidentXEncoding.sage.py:160(altsNeeded)
+      209    0.000    0.000    0.000    0.000 myDissidentXEncoding.sage.py:244(<lambda>)
+        2    0.000    0.000    0.000    0.000 myDissidentXEncoding.sage.py:69(encrypt)
+        2    0.000    0.000    0.000    0.000 {Crypto.Cipher._AES.new}
 

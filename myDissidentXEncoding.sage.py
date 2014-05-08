@@ -8,7 +8,7 @@ import pdb
 from math import log as ln
 import random
 import cProfile
-import sage.all
+from sage.all import MatrixSpace, VectorSpace, GF
 """
 mcs: message chunk size
 """
@@ -21,6 +21,7 @@ params = {"default mcs": 12,
 params["chunk size"] = params["mac size"] + params["default mcs"]
 assert params["window size"] > params["window spacing"]
 assert params["window size"] >= params["chunk size"]
+
 
 def h(message):
   """
@@ -47,24 +48,11 @@ def xor(m1, m2):
   return ''.join(chr(ord(x) ^ ord(y)) for x,y in zip(m1, m2))
 
 def solve(vectors, goal):
-  active = [x + [0] * len(vectors) for x in vectors]
-  for i in range(len(active)):
-    active[i][len(goal) + i] = 1
-  for i in range(len(goal)):
-    p = i
-    while p < len(active) and active[p][i] == 0:
-      p += 1
-    if p == len(vectors):
-      return None
-    active[p], active[i] = active[i], active[p]
-    for j in range(len(active)):
-      if j != i and active[j][i]:
-        active[j] = xorBitfield(active[j], active[i])
-  r = [0] * len(active)
-  for i in range(len(goal)):
-    if goal[i]:
-      r = xorBitfield(r, active[i][len(goal):])
-  return r
+  M = MatrixSpace(GF(2), len(vectors), len(vectors[0]))
+  V = VectorSpace(GF(2), len(goal))
+  A = M(vectors)
+  b = V(goal)
+  return A.solve_left(b)
 
 def encrypt(key, plaintext, iv=None):
   """
@@ -340,7 +328,7 @@ def main():
   global key
   password = 'password'
   key = h(password)[:AES_BLOCK_SIZE]
-  testAll()
+  #testAll()
   covertext = open('genesis.txt', 'r').read()
   plaintextMessage = 'this is a long sentence that we are testing out looooooong'*2
 
@@ -359,6 +347,6 @@ def profile():
     pr.print_stats(sort="tottime")
 
 if __name__ == "__main__":
-  #print decode(main())
-  profile()
+  print decode(main())
+  #profile()
 
